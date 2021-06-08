@@ -1,0 +1,60 @@
+- hosts: [docker]
+  become: yes
+  become_user: root
+  vars_files: vars.yml
+
+  tasks:
+    - name: " Install required packages for docker installation "
+      apt:
+       update_cache: yes
+       force_apt_get: yes
+       cache_valid_time: 3600
+       name: "{{ item }}"
+       state: present
+      loop : "{{ package }}"
+     
+    - name: " Adding docker gpg key "
+      apt_key: 
+        url : https://download.docker.com/linux/ubuntu/gpg
+        keyring: /usr/share/keyrings/docker-archive-keyring.gpg
+        state: present
+    
+    - name: "Adding docker repo"
+      apt_repository:
+       repo: deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu focal stable
+       state: present
+      
+    - name: " Installing Docker from apt"
+      apt:
+       update_cache: yes
+       force_apt_get: yes
+       cache_valid_time: 3600
+       name: "{{ item }}"
+      loop : "{{ docker_packages }}"
+
+    - name: " Installing docker module for python"
+      pip:
+       name: docker-py
+    
+    - name: "copying web pages from web-content directory"
+      copy:
+        src: web-content
+        dest: /
+
+    - name: " Starting container by pulling docker image "
+      docker_container:
+       name: webserver
+       image: httpd
+       ports: "8081:80"
+       state: started
+       detach: yes
+       volumes: /web-content/:/usr/local/apache2/htdocs/
+
+    - name: "adding rule to allow 8081 port"
+      ufw:
+       rule: allow
+       port: '8081'
+       proto: tcp
+
+    
+
